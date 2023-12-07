@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SqlServerJsonPerf", "SqlServerJsonPerf\SqlServerJsonPerf.fsproj", "{2B4C35F4-C8DA-44E8-B4EC-A14B7420B681}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2B4C35F4-C8DA-44E8-B4EC-A14B7420B681}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B4C35F4-C8DA-44E8-B4EC-A14B7420B681}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B4C35F4-C8DA-44E8-B4EC-A14B7420B681}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B4C35F4-C8DA-44E8-B4EC-A14B7420B681}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
