@@ -2,7 +2,7 @@ module SqlServerJsonPerf.ServerManagement
 
     open Microsoft.SqlServer.Management.Smo
 
-    let private openServer username password =
+    let openServer username password =
         let server = new Server()
         server.ConnectionContext.LoginSecure <- false
         server.ConnectionContext.Login <- username
@@ -22,7 +22,6 @@ module SqlServerJsonPerf.ServerManagement
         let user = new User(database, username)
         user.Login <- username 
         user.Create()
-        // server.Refresh()
         login, user
         
     let init adminUser adminPassword appUser appPassword dbName =
@@ -31,7 +30,16 @@ module SqlServerJsonPerf.ServerManagement
         let login, user = createLoginAndUser server database appUser appPassword
         database, login, user
         
-    let cleanup (database:Database) (login:Login) (user:User) =
-        user.DropIfExists()
-        login.DropIfExists()
-        database.DropIfExists()
+    // let cleanup (database:Database) (login:Login) (user:User) =
+    //     user.DropIfExists()
+    //     login.DropIfExists()
+    //     database.DropIfExists()
+        
+    let cleanup (server:Server) (username:string) =
+        let database = server.Databases.[Constants.DatabaseName]
+        if database <> null then
+            server.ConnectionContext.ExecuteNonQuery($"ALTER DATABASE [{Constants.DatabaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE") |> ignore
+            database.Drop()
+        let login = server.Logins.[username]
+        if login <> null then
+            login.Drop()

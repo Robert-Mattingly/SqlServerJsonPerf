@@ -17,7 +17,10 @@ module Program =
         let adminPassword = config.["Sql:AdminLogin:Password"]
         let appUser = config.["Sql:AppLogin:Username"]
         let appPassword = config.["Sql:AppLogin:Password"]
-        let dbName = nameof SqlServerJsonPerf
+        let dbName = Constants.DatabaseName
+        
+        let server = ServerManagement.openServer adminUser adminPassword
+        ServerManagement.cleanup server appUser
         
         let (db, login, user) = ServerManagement.init
                                     adminUser
@@ -26,7 +29,9 @@ module Program =
                                     appPassword
                                     dbName
         
-        ServerManagement.cleanup db login user
+        TableInformation.createTables db
+        
+        ServerManagement.cleanup server appUser
         
         printfn "Hello from F#"
         
