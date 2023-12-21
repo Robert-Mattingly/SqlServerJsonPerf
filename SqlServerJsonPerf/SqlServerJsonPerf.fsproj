@@ -11,6 +11,8 @@
         <Compile Include="Constants.fs" />
         <Compile Include="ServerManagement.fs" />
         <Compile Include="TableInformation.fs" />
+        <Compile Include="DataSeed.fs" />
+        <Compile Include="DataWriter.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 

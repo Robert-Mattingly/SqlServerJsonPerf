@@ -31,6 +31,12 @@ module Program =
         
         TableInformation.createTables db
         
+        let samples = DataSeed.generateSampleData 1_000
+        
+        let appConnString = $"Server=%s{server.Name};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
+        
+        let rawJsonInsertResults = DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
+        
         ServerManagement.cleanup server appUser
         
         printfn "Hello from F#"

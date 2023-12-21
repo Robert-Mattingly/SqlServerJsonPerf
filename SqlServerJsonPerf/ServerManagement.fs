@@ -20,8 +20,11 @@ module SqlServerJsonPerf.ServerManagement
         login.Create(password)
         
         let user = new User(database, username)
-        user.Login <- username 
+        user.Login <- username
         user.Create()
+        user.AddToRole("db_datareader")
+        user.AddToRole("db_datawriter")
+        user.Alter()
         login, user
         
     let init adminUser adminPassword appUser appPassword dbName =
