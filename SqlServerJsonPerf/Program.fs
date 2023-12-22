@@ -31,13 +31,15 @@ module Program =
         
         TableInformation.createTables db
         
-        let samples = DataSeed.generateSampleData 1_000
+        let samples = DataSeed.generateSampleData 1_000_00
         
         let appConnString = $"Server=%s{server.Name};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
         
         let rawJsonInsertResults = DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
         
         let dimensionInsertResults = DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
+        
+        let relationalInsertResults = DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
         
         ServerManagement.cleanup server appUser
         
