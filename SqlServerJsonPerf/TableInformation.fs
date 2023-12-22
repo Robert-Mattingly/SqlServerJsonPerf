@@ -9,7 +9,7 @@ let private createRawJsonTable database =
     table.Create()
     
 let private createJsonTableWithIndexedViews database =
-    let personTable = Table(database, Constants.JsonWithIndexedViewsTableName)
+    let personTable = Table(database, Constants.JsonWithDimensionTableName)
     let jsonColumn = Column(personTable, "Json", DataType.NVarCharMax, Nullable = false)
     personTable.Columns.Add(jsonColumn)
     let idColumn = Column(personTable, "Id", DataType.UniqueIdentifier, Nullable = false)

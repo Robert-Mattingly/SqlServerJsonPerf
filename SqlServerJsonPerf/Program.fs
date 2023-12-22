@@ -37,6 +37,8 @@ module Program =
         
         let rawJsonInsertResults = DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
         
+        let dimensionInsertResults = DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
+        
         ServerManagement.cleanup server appUser
         
         printfn "Hello from F#"
