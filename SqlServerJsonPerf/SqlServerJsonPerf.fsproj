@@ -13,6 +13,7 @@
         <Compile Include="TableInformation.fs" />
         <Compile Include="DataSeed.fs" />
         <Compile Include="DataWriter.fs" />
+        <Compile Include="DataReader.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 

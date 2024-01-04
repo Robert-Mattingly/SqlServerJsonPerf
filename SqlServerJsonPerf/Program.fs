@@ -41,6 +41,10 @@ module Program =
         
         let relationalInsertResults = DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
         
+        let rawJsonSelectMetrics = DataReader.queryRawJson appConnString 987
+        
+        let jsonWithDimensionSelectMetrics = DataReader.queryJsonWithDimensionTable appConnString 987
+        
         ServerManagement.cleanup server appUser
         
         printfn "Hello from F#"
