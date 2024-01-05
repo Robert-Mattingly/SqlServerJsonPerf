@@ -9,6 +9,7 @@
         <Compile Include="AssemblyInfo.fs" />
         <Compile Include="Types.fs" />
         <Compile Include="Constants.fs" />
+        <Compile Include="Extensions.fs" />
         <Compile Include="ServerManagement.fs" />
         <Compile Include="TableInformation.fs" />
         <Compile Include="DataSeed.fs" />

@@ -19,6 +19,7 @@ module Program =
         let appPassword = config.["Sql:AppLogin:Password"]
         let dbName = Constants.DatabaseName
         
+        printfn "Removing existing database if exists..."
         let server = ServerManagement.openServer adminUser adminPassword
         ServerManagement.cleanup server appUser
         
@@ -29,12 +30,16 @@ module Program =
                                     appPassword
                                     dbName
         
+        printfn "Creating tables..."
         TableInformation.createTables db
         
-        let samples = DataSeed.generateSampleData 1_000_00
+        let sampleSize = 1_000_000
+        printfn "Generating %i samples..." sampleSize
+        let samples = DataSeed.generateSampleData sampleSize
         
         let appConnString = $"Server=%s{server.Name};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
         
+        printfn "Inserting samples..."
         let bulkInsertMetrics = [
             "RawJson", DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
             "JsonWithIndex", DataWriter.bulkInsertJsonWithIndex appConnString Constants.JsonWithIndexTableName samples
@@ -42,6 +47,7 @@ module Program =
             "Relational", DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
         ]
         
+        printfn "Selecting by Country..."
         let countryCodeToSelect = 987
         let selectByCountryCodeMetrics = [
             "RawJson", DataReader.queryRawJsonByCountryCode appConnString countryCodeToSelect
@@ -49,6 +55,7 @@ module Program =
             "Relational", DataReader.queryRelationalByCountryCode appConnString countryCodeToSelect
         ]
         
+        printfn "Selecting by Zip..."
         let zipToSelect = "96863"
         let selectByZipMetrics = [
             "RawJson", DataReader.queryRawJsonByZip appConnString zipToSelect

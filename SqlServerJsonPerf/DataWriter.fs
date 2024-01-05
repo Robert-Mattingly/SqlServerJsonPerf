@@ -6,6 +6,7 @@ open System.Data
 open System.Diagnostics
 open System.Text.Json
 open Microsoft.Data.SqlClient
+open SqlServerJsonPerf.Extensions
 open SqlServerJsonPerf.Types
 
 type BulkInsertMetrics = {
@@ -20,6 +21,8 @@ type BulkInsertMetrics = {
     ServerRoundTrips:int64
 }
 
+let private bulkCopyBatchSize = 100_000
+
 let private parseMetrics totalTime serializationTime (statistics:IDictionary) =
     {
         TotalTime = totalTime
@@ -32,6 +35,22 @@ let private parseMetrics totalTime serializationTime (statistics:IDictionary) =
         IduRows = statistics.["IduRows"] :?> int64
         ServerRoundTrips = statistics.["ServerRoundtrips"] :?> int64 
     }
+    
+
+   
+let private prepConnection (connectionString:string)  =
+    let connection = new SqlConnection(connectionString)
+    connection.StatisticsEnabled <- true
+    connection.Open()
+    connection
+    
+let private prepBulkCopy (connection:SqlConnection) copyOptions =
+    let bulkCopy = new SqlBulkCopy(connection, copyOptions, null)
+    bulkCopy.BulkCopyTimeout <- 90
+    bulkCopy.BatchSize <- bulkCopyBatchSize
+    bulkCopy.NotifyAfter <- bulkCopyBatchSize / 4
+    bulkCopy.SqlRowsCopied.Add(fun args -> printf ".")
+    bulkCopy
 
 let bulkInsertRawJson (connectionString:string) (tableName:string) (people:Person list) =
     let totalTimer = Stopwatch.StartNew()
@@ -42,13 +61,9 @@ let bulkInsertRawJson (connectionString:string) (tableName:string) (people:Perso
     dataTable.Columns.Add("Json", typeof<string>) |> ignore
     jsonValues |> List.iter (fun json -> dataTable.Rows.Add(json) |> ignore)
     serializationTimer.Stop()
-    use connection = new SqlConnection(connectionString)
-    connection.StatisticsEnabled <- true
-    connection.Open()
-    use bulkCopy = new SqlBulkCopy(connection)
-    bulkCopy.DestinationTableName <- tableName
-    bulkCopy.BatchSize <- 50_000
-    bulkCopy.WriteToServer(dataTable)
+    use connection = prepConnection connectionString
+    use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.Default
+    bulkCopy.WriteTo tableName dataTable
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed 
 
@@ -60,13 +75,9 @@ let bulkInsertJsonWithIndex (connectionString:string) (tableName:string) (people
     dataTable.Columns.Add("Json", typeof<string>) |> ignore
     jsonValues |> List.iter (fun json -> dataTable.Rows.Add(json) |> ignore)
     serializationTimer.Stop()
-    use connection = new SqlConnection(connectionString)
-    connection.StatisticsEnabled <- true
-    connection.Open()
-    use bulkCopy = new SqlBulkCopy(connection)
-    bulkCopy.DestinationTableName <- tableName
-    bulkCopy.BatchSize <- 50_000
-    bulkCopy.WriteToServer(dataTable)
+    use connection = prepConnection connectionString
+    use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.Default
+    bulkCopy.WriteTo tableName dataTable
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed
 
@@ -78,16 +89,12 @@ let bulkInsertJsonWithDimension (connectionString:string) (tableName:string) (pe
     dataTable.Columns.Add("Json", typeof<string>) |> ignore
     jsonValues |> List.iter (fun json -> dataTable.Rows.Add(json) |> ignore)
     serializationTimer.Stop()
-    use connection = new SqlConnection(connectionString)
-    connection.StatisticsEnabled <- true
-    connection.Open()
+    use connection = prepConnection connectionString
     // Note: SqlBulkCopyOptions.FireTriggers is required for the dimension to work
     // and the SqlBulkCopy constructor that takes a SqlBulkCopyOptions parameter
     // and a SqlConnection requires a SqlTransaction parameter.
-    use bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.FireTriggers, null)
-    bulkCopy.DestinationTableName <- tableName
-    bulkCopy.BatchSize <- 50_000
-    bulkCopy.WriteToServer(dataTable)
+    use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.FireTriggers
+    bulkCopy.WriteTo tableName dataTable
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed
     
@@ -125,16 +132,10 @@ let bulkInsertRelational
         person.PhoneNumbers |> List.iter (fun phoneNumber ->
             phoneNumbersTable.Rows.Add(person.Id, phoneNumber.Id, phoneNumber.Country, phoneNumber.AreaCode, phoneNumber.Number) |> ignore))
     serializationTimer.Stop()
-    use connection = new SqlConnection(connectionString)
-    connection.StatisticsEnabled <- true
-    connection.Open()
-    use bulkCopy = new SqlBulkCopy(connection)
-    bulkCopy.DestinationTableName <- personTableName
-    bulkCopy.BatchSize <- 50_000
-    bulkCopy.WriteToServer(personTable)
-    bulkCopy.DestinationTableName <- addressTableName
-    bulkCopy.WriteToServer(addressTable)
-    bulkCopy.DestinationTableName <- phoneNumbersTableName
-    bulkCopy.WriteToServer(phoneNumbersTable)
+    use connection = prepConnection connectionString
+    use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.Default
+    bulkCopy.WriteTo personTableName personTable
+    bulkCopy.WriteTo addressTableName addressTable
+    bulkCopy.WriteTo phoneNumbersTableName phoneNumbersTable
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed
