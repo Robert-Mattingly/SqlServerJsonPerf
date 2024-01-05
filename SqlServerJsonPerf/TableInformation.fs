@@ -8,6 +8,21 @@ let private createRawJsonTable database =
     table.Columns.Add(jsonColumn)
     table.Create()
     
+let private createJsonWithIndexTable database =
+    let table = Table(database, Constants.JsonWithIndexTableName)
+    let jsonColumn = Column(table, "Json", DataType.NVarCharMax, Nullable = false)
+    table.Columns.Add(jsonColumn)
+    let zipColumn = Column(table, "Zip", DataType.VarChar(5), Nullable = false)
+    zipColumn.Computed <- true
+    zipColumn.IsPersisted <- true
+    zipColumn.ComputedText <- "CAST(JSON_VALUE(Json, 'strict $.Address.Zip') AS VARCHAR(5))"
+    table.Columns.Add(zipColumn)
+    table.Create()
+    let zipIndex = Index(table, "ZipIndex")
+    zipIndex.IndexedColumns.Add(IndexedColumn(zipIndex, "Zip"))
+    table.Indexes.Add(zipIndex)
+    zipIndex.Create()
+    
 let private createJsonTableWithTriggerForDimension database =
     let personTable = Table(database, Constants.JsonWithDimensionTableName)
     let jsonColumn = Column(personTable, "Json", DataType.NVarCharMax, Nullable = false)
@@ -68,7 +83,7 @@ let private createRelationalTables database =
     phoneNumberTable.Columns.Add(personIdColumn)
     let idColumn = Column(phoneNumberTable, "Id", DataType.UniqueIdentifier, Nullable = false)
     phoneNumberTable.Columns.Add(idColumn)
-    let countryColumn = Column(phoneNumberTable, "Country", DataType.NVarChar(5), Nullable = false)
+    let countryColumn = Column(phoneNumberTable, "Country", DataType.VarChar(5), Nullable = false)
     phoneNumberTable.Columns.Add(countryColumn)
     let areaCodeColumn = Column(phoneNumberTable, "AreaCode", DataType.NVarChar(30), Nullable = false)
     phoneNumberTable.Columns.Add(areaCodeColumn)
@@ -106,7 +121,7 @@ let private createRelationalTables database =
     addressTable.Columns.Add(cityColumn)
     let stateColumn = Column(addressTable, "State", DataType.NVarChar(50), Nullable = false)
     addressTable.Columns.Add(stateColumn)
-    let zipColumn = Column(addressTable, "Zip", DataType.NVarChar(50), Nullable = false)
+    let zipColumn = Column(addressTable, "Zip", DataType.VarChar(5), Nullable = false)
     addressTable.Columns.Add(zipColumn)
     // Primary key
     let addressPrimaryKey = Index(addressTable, "AddressPrimaryKey")
@@ -120,10 +135,18 @@ let private createRelationalTables database =
     let addressPersonIdColumn = ForeignKeyColumn(addressPersonId, "PersonId", "Id")
     addressPersonId.Columns.Add(addressPersonIdColumn)
     addressTable.ForeignKeys.Add(addressPersonId)
+    // Zip index
+    let ZipAndPersonIdIndex = Index(addressTable, "ZipAndPersonIdIndex")
+    ZipAndPersonIdIndex.IndexKeyType <- IndexKeyType.None
+    ZipAndPersonIdIndex.IndexedColumns.Add(IndexedColumn(ZipAndPersonIdIndex, "Zip"))
+    ZipAndPersonIdIndex.IndexedColumns.Add(IndexedColumn(ZipAndPersonIdIndex, "PersonId"))
+    addressTable.Indexes.Add(ZipAndPersonIdIndex)
+    
     addressTable.Create()
     
 let createTables database =
     createRawJsonTable database
+    createJsonWithIndexTable database
     createJsonTableWithTriggerForDimension database
     createRelationalTables database
    

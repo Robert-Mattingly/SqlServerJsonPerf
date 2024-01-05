@@ -37,15 +37,24 @@ module Program =
         
         let bulkInsertMetrics = [
             "RawJson", DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
+            "JsonWithIndex", DataWriter.bulkInsertJsonWithIndex appConnString Constants.JsonWithIndexTableName samples
             "JsonWithDimensionTable", DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
             "Relational", DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
         ]
         
         let countryCodeToSelect = 987
         let selectByCountryCodeMetrics = [
-            "RawJson", DataReader.queryRawJson appConnString countryCodeToSelect
-            "JsonWithDimensionTable", DataReader.queryJsonWithDimensionTable appConnString countryCodeToSelect
-            "Relational", DataReader.queryRelational appConnString countryCodeToSelect
+            "RawJson", DataReader.queryRawJsonByCountryCode appConnString countryCodeToSelect
+            "JsonWithDimensionTable", DataReader.queryJsonWithDimensionTableByCountryCode appConnString countryCodeToSelect
+            "Relational", DataReader.queryRelationalByCountryCode appConnString countryCodeToSelect
+        ]
+        
+        let zipToSelect = "96863"
+        let selectByZipMetrics = [
+            "RawJson", DataReader.queryRawJsonByZip appConnString zipToSelect
+            "JsonWithIndexNoForce", DataReader.queryJsonWithIndexByZip appConnString zipToSelect false
+            "JsonWithIndexForce", DataReader.queryJsonWithIndexByZip appConnString zipToSelect true
+            "Relational", DataReader.queryRelationalByZip appConnString zipToSelect
         ]
         
         ServerManagement.cleanup server appUser

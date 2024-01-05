@@ -7,6 +7,9 @@ let DatabaseName = nameof SqlServerJsonPerf
 let RawJsonTableName = "RawJson"
 
 [<Literal>]
+let JsonWithIndexTableName = "JsonWithIndex"
+
+[<Literal>]
 let JsonWithDimensionTableName = "JsonWithDimension"
 
 [<Literal>]

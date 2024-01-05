@@ -8,23 +8,15 @@ module SqlServerJsonPerf.DataSeed
         FirstName =  "John"
         LastName = "Doe"
         Age = 45
-        Addresses = [
-            { Id = Guid.NewGuid(); Line1 = "123 Wallaby Way"; Line2 = ""; City = "Sydney"; State = "NSW"; Zip = "2000" }
-            { Id = Guid.NewGuid(); Line1 = "456 Wallaby Way"; Line2 = ""; City = "Sydney"; State = "NSW"; Zip = "2000" }
-        ]
+        Address = { Id = Guid.NewGuid(); Line1 = "123 Wallaby Way"; Line2 = ""; City = "Sydney"; State = "NSW"; Zip = "96863" }
         PhoneNumbers = [
             { Id = Guid.NewGuid(); Country = "1"; AreaCode = "776"; Number = "788-2529" }
             { Id = Guid.NewGuid(); Country = "1"; AreaCode = "776"; Number = "788-2529" } 
         ]
     }
     
-    let private generateAddresses (random:Random) =
-        let count = random.Next(1, 3)
-        let rec generateAddresses' (count: int) (acc: Address list) =
-            match count with
-            | 0 -> acc
-            | _ -> generateAddresses' (count - 1) ({ Id = Guid.NewGuid(); Line1 = "123 Wallaby Way"; Line2 = ""; City = "Sydney"; State = "NSW"; Zip = "2000" } :: acc)
-        generateAddresses' count []
+    let private generateAddress (random:Random) =
+        { Id = Guid.NewGuid(); Line1 = "123 Wallaby Way"; Line2 = ""; City = "Sydney"; State = "NSW"; Zip = "9686" + random.Next(1, 9).ToString() }
     
     let private generatePhoneNumbers (random:Random) =
         let count = random.Next(1, 3)
@@ -39,6 +31,6 @@ module SqlServerJsonPerf.DataSeed
         let rec generateSampleData' (count: int) (acc: Person list) =
             match count with
             | 0 -> acc
-            | _ -> generateSampleData' (count - 1) ({ baseRecord with Id = Guid.NewGuid(); PhoneNumbers = generatePhoneNumbers random; Addresses = generateAddresses random } :: acc)
+            | _ -> generateSampleData' (count - 1) ({ baseRecord with Id = Guid.NewGuid(); PhoneNumbers = generatePhoneNumbers random; Address = generateAddress random } :: acc)
         generateSampleData' count []
 

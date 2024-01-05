@@ -36,7 +36,7 @@ let private parseMetrics totalTime deserializationTime results (statistics:IDict
         SumResultSets = statistics.["SumResultSets"] :?> int64
         Results = results 
     }
-let queryRawJson (connString:string) (countryCode:int) =
+let queryRawJsonByCountryCode (connString:string) (countryCode:int) =
     let totalTimer = Stopwatch.StartNew()
     let sql = $"
     SELECT
@@ -66,7 +66,7 @@ let queryRawJson (connString:string) (countryCode:int) =
                      |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
     metrics
     
-let queryJsonWithDimensionTable (connString:string) (countryCode:int) =
+let queryJsonWithDimensionTableByCountryCode (connString:string) (countryCode:int) =
     let totalTimer = Stopwatch.StartNew()
     let sql = $"
     SELECT
@@ -96,7 +96,7 @@ let queryJsonWithDimensionTable (connString:string) (countryCode:int) =
                      |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
     metrics
 
-let convertToMap (seq: ('a * 'b) seq) : Map<'a, 'b list> =
+let private convertToMap (seq: ('a * 'b) seq) : Map<'a, 'b list> =
     seq
     |> Seq.groupBy fst
     |> Seq.map (fun (key, group) -> key, (group |> Seq.map snd |> List.ofSeq))
@@ -113,7 +113,7 @@ let private parseAddressTableToMap (addresses:DataTable) =
             State = row.["State"] :?> string
             Zip = row.["Zip"] :?> string
         })
-    addressesByPersonId |> convertToMap
+    addressesByPersonId |> Map.ofSeq
     
 let private parsePhoneNumberTableToMap (phoneNumbers:DataTable) =
     let phoneNumbersByPersonId = phoneNumbers.Rows |> Seq.cast<DataRow> |> Seq.map (fun row ->
@@ -136,12 +136,12 @@ let private deserializeDataTablesToPersonList (persons:DataTable) (addresses:Dat
             FirstName = row.["FirstName"] :?> string
             LastName = row.["LastName"] :?> string
             Age = row.["Age"] :?> int
-            Addresses = addressesByPersonId.[id]
+            Address = addressesByPersonId.[id]
             PhoneNumbers = phoneNumbersByPersonId.[id]
         })
     results |> List.ofSeq
     
-let queryRelational (connString:string) (countryCode:int) =
+let queryRelationalByCountryCode (connString:string) (countryCode:int) =
     let totalTimer = Stopwatch.StartNew()
     let sql = $"
     SELECT p.* FROM {Constants.PersonTableName} p
@@ -161,6 +161,94 @@ let queryRelational (connString:string) (countryCode:int) =
     use dataset = new DataSet()
     use adapter = new SqlDataAdapter(sql, conn)
     adapter.SelectCommand.Parameters.Add("@TargetCode", SqlDbType.VarChar, 5).Value <- countryCode.ToString()
+    adapter.Fill(dataset) |> ignore
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = deserializeDataTablesToPersonList dataset.Tables.[0] dataset.Tables.[1] dataset.Tables.[2]
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics
+    
+let queryRawJsonByZip (connString:string) (zip:string) =
+    let totalTimer = Stopwatch.StartNew()
+    let sql = $"
+    SELECT
+        [Json]
+    FROM {Constants.RawJsonTableName}
+    WHERE JSON_VALUE(Json, '$.Address.Zip') = @TargetZip
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use cmd = new SqlCommand(sql, conn)
+    cmd.Parameters.Add("@TargetZip", SqlDbType.VarChar, 5).Value <- zip
+    use reader = cmd.ExecuteReader()
+    let rec readAll (reader:SqlDataReader) =
+        seq {
+            if reader.Read() then
+                yield reader.GetString(0)
+                yield! readAll reader
+        }
+    let rawJson = readAll reader |> Seq.toList
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = rawJson |> List.map JsonSerializer.Deserialize<Person>
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics
+    
+let queryJsonWithIndexByZip (connString:string) (zip:string) forceIndex =
+    let totalTimer = Stopwatch.StartNew()
+    let indexForceArg = if forceIndex then "WITH (INDEX(ZipIndex))" else ""
+    let sql = $"
+    SELECT
+        jwd.Json
+    FROM {Constants.JsonWithIndexTableName} jwd {indexForceArg}
+    WHERE jwd.Zip = @TargetZip
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use cmd = new SqlCommand(sql, conn)
+    cmd.Parameters.Add("@TargetZip", SqlDbType.VarChar, 5).Value <- zip
+    use reader = cmd.ExecuteReader()
+    let rec readAll (reader:SqlDataReader) =
+        seq {
+            if reader.Read() then
+                yield reader.GetString(0)
+                yield! readAll reader
+        }
+    let rawJson = readAll reader |> Seq.toList
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = rawJson |> List.map JsonSerializer.Deserialize<Person>
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics
+    
+let queryRelationalByZip (connString:string) (zip:string) =
+    let totalTimer = Stopwatch.StartNew()
+    let sql = $"
+    SELECT p.* FROM {Constants.PersonTableName} p
+    JOIN {Constants.AddressTableName} a ON p.Id = a.PersonId
+    WHERE a.Zip = @TargetZip
+
+    SELECT a.* FROM {Constants.AddressTableName} a
+    WHERE a.Zip = @TargetZip
+
+    SELECT pn.* FROM {Constants.PhoneNumberTableName} pn
+    JOIN {Constants.AddressTableName} a ON pn.PersonId = a.PersonId
+    WHERE a.Zip = @TargetZip
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use dataset = new DataSet()
+    use adapter = new SqlDataAdapter(sql, conn)
+    adapter.SelectCommand.Parameters.Add("@TargetZip", SqlDbType.VarChar, 5).Value <- zip
     adapter.Fill(dataset) |> ignore
     let deserializationTimer = Stopwatch.StartNew()
     let deserialized = deserializeDataTablesToPersonList dataset.Tables.[0] dataset.Tables.[1] dataset.Tables.[2]

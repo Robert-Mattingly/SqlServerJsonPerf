@@ -33,11 +33,6 @@ module SqlServerJsonPerf.ServerManagement
         let login, user = createLoginAndUser server database appUser appPassword
         database, login, user
         
-    // let cleanup (database:Database) (login:Login) (user:User) =
-    //     user.DropIfExists()
-    //     login.DropIfExists()
-    //     database.DropIfExists()
-        
     let cleanup (server:Server) (username:string) =
         let database = server.Databases.[Constants.DatabaseName]
         if database <> null then

@@ -52,6 +52,24 @@ let bulkInsertRawJson (connectionString:string) (tableName:string) (people:Perso
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed 
 
+let bulkInsertJsonWithIndex (connectionString:string) (tableName:string) (people:Person list) =
+    let totalTimer = Stopwatch.StartNew()
+    let serializationTimer = Stopwatch.StartNew()
+    let jsonValues = people |> List.map JsonSerializer.Serialize
+    use dataTable = new DataTable()
+    dataTable.Columns.Add("Json", typeof<string>) |> ignore
+    jsonValues |> List.iter (fun json -> dataTable.Rows.Add(json) |> ignore)
+    serializationTimer.Stop()
+    use connection = new SqlConnection(connectionString)
+    connection.StatisticsEnabled <- true
+    connection.Open()
+    use bulkCopy = new SqlBulkCopy(connection)
+    bulkCopy.DestinationTableName <- tableName
+    bulkCopy.BatchSize <- 50_000
+    bulkCopy.WriteToServer(dataTable)
+    totalTimer.Stop()
+    connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed
+
 let bulkInsertJsonWithDimension (connectionString:string) (tableName:string) (people:Person list) =
     let totalTimer = Stopwatch.StartNew()
     let serializationTimer = Stopwatch.StartNew()
@@ -102,8 +120,8 @@ let bulkInsertRelational
     phoneNumbersTable.Columns.Add("Number", typeof<string>) |> ignore
     people |> List.iter (fun person ->
         personTable.Rows.Add(person.Id, person.FirstName, person.LastName, person.Age) |> ignore
-        person.Addresses |> List.iter (fun address ->
-            addressTable.Rows.Add(person.Id, address.Id, address.Line1, address.Line2, address.City, address.State, address.Zip) |> ignore)
+        let address = person.Address
+        addressTable.Rows.Add(person.Id, address.Id, address.Line1, address.Line2, address.City, address.State, address.Zip) |> ignore
         person.PhoneNumbers |> List.iter (fun phoneNumber ->
             phoneNumbersTable.Rows.Add(person.Id, phoneNumber.Id, phoneNumber.Country, phoneNumber.AreaCode, phoneNumber.Number) |> ignore))
     serializationTimer.Stop()

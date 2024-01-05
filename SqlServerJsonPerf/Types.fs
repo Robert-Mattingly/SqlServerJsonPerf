@@ -23,6 +23,6 @@ type Person = {
     FirstName:string
     LastName:string
     Age:int
-    Addresses:Address list
+    Address:Address
     PhoneNumbers:PhoneNumber list
 }
