@@ -95,3 +95,77 @@ let queryJsonWithDimensionTable (connString:string) (countryCode:int) =
     let metrics = conn.RetrieveStatistics()
                      |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
     metrics
+
+let convertToMap (seq: ('a * 'b) seq) : Map<'a, 'b list> =
+    seq
+    |> Seq.groupBy fst
+    |> Seq.map (fun (key, group) -> key, (group |> Seq.map snd |> List.ofSeq))
+    |> Map.ofSeq
+
+let private parseAddressTableToMap (addresses:DataTable) =
+    let addressesByPersonId = addresses.Rows |> Seq.cast<DataRow> |> Seq.map (fun row ->
+        row.["PersonId"] :?> Guid,
+        {
+            Id = row.["Id"] :?> Guid
+            Line1 = row.["Line1"] :?> string
+            Line2 = row.["Line2"] :?> string
+            City = row.["City"] :?> string
+            State = row.["State"] :?> string
+            Zip = row.["Zip"] :?> string
+        })
+    addressesByPersonId |> convertToMap
+    
+let private parsePhoneNumberTableToMap (phoneNumbers:DataTable) =
+    let phoneNumbersByPersonId = phoneNumbers.Rows |> Seq.cast<DataRow> |> Seq.map (fun row ->
+        row.["PersonId"] :?> Guid,
+        {
+            Id = row.["Id"] :?> Guid
+            Country = row.["Country"] :?> string
+            AreaCode = row.["AreaCode"] :?> string
+            Number = row.["Number"] :?> string
+        })
+    phoneNumbersByPersonId |> convertToMap
+
+let private deserializeDataTablesToPersonList (persons:DataTable) (addresses:DataTable) (phoneNumbers:DataTable) =
+    let addressesByPersonId = parseAddressTableToMap addresses
+    let phoneNumbersByPersonId = parsePhoneNumberTableToMap phoneNumbers
+    let results = persons.Rows |> Seq.cast<DataRow> |> Seq.map (fun row ->
+        let id = row.["Id"] :?> Guid
+        {
+            Id = id
+            FirstName = row.["FirstName"] :?> string
+            LastName = row.["LastName"] :?> string
+            Age = row.["Age"] :?> int
+            Addresses = addressesByPersonId.[id]
+            PhoneNumbers = phoneNumbersByPersonId.[id]
+        })
+    results |> List.ofSeq
+    
+let queryRelational (connString:string) (countryCode:int) =
+    let totalTimer = Stopwatch.StartNew()
+    let sql = $"
+    SELECT p.* FROM {Constants.PersonTableName} p
+    JOIN {Constants.PhoneNumberTableName} pn ON p.Id = pn.PersonId
+    WHERE pn.Country = @TargetCode
+
+    SELECT a.* FROM {Constants.AddressTableName} a
+    JOIN {Constants.PhoneNumberTableName} pn ON a.PersonId = pn.PersonId
+    WHERE pn.Country = @TargetCode
+
+    SELECT * FROM {Constants.PhoneNumberTableName}
+    WHERE Country = @TargetCode
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use dataset = new DataSet()
+    use adapter = new SqlDataAdapter(sql, conn)
+    adapter.SelectCommand.Parameters.Add("@TargetCode", SqlDbType.VarChar, 5).Value <- countryCode.ToString()
+    adapter.Fill(dataset) |> ignore
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = deserializeDataTablesToPersonList dataset.Tables.[0] dataset.Tables.[1] dataset.Tables.[2]
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics

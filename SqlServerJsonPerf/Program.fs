@@ -45,6 +45,8 @@ module Program =
         
         let jsonWithDimensionSelectMetrics = DataReader.queryJsonWithDimensionTable appConnString 987
         
+        let relationalSelectMetrics = DataReader.queryRelational appConnString 987
+        
         ServerManagement.cleanup server appUser
         
         printfn "Hello from F#"
