@@ -35,17 +35,18 @@ module Program =
         
         let appConnString = $"Server=%s{server.Name};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
         
-        let rawJsonInsertResults = DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
+        let bulkInsertMetrics = [
+            "RawJson", DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
+            "JsonWithDimensionTable", DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
+            "Relational", DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
+        ]
         
-        let dimensionInsertResults = DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
-        
-        let relationalInsertResults = DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
-        
-        let rawJsonSelectMetrics = DataReader.queryRawJson appConnString 987
-        
-        let jsonWithDimensionSelectMetrics = DataReader.queryJsonWithDimensionTable appConnString 987
-        
-        let relationalSelectMetrics = DataReader.queryRelational appConnString 987
+        let countryCodeToSelect = 987
+        let selectByCountryCodeMetrics = [
+            "RawJson", DataReader.queryRawJson appConnString countryCodeToSelect
+            "JsonWithDimensionTable", DataReader.queryJsonWithDimensionTable appConnString countryCodeToSelect
+            "Relational", DataReader.queryRelational appConnString countryCodeToSelect
+        ]
         
         ServerManagement.cleanup server appUser
         
