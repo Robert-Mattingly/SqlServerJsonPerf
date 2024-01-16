@@ -4,6 +4,7 @@ namespace SqlServerJsonPerf
 
 open Microsoft.Extensions.Configuration
 open Microsoft.SqlServer.Management.Smo
+open SqlServerJsonPerf.DataReader
 
 type Program() =
     do()
@@ -12,6 +13,10 @@ module Program =
     [<EntryPoint>]
     let main argv =
         let config = ConfigurationBuilder().AddUserSecrets<Program>().Build()
+        
+        let typeOfSelectMetrics = typeof<SelectMetrics>
+        let fields = typeOfSelectMetrics.GetFields()
+        let properties = typeOfSelectMetrics.GetProperties()
         
         let adminUser = config.["Sql:AdminLogin:Username"]
         let adminPassword = config.["Sql:AdminLogin:Password"]
@@ -33,14 +38,14 @@ module Program =
         printfn "Creating tables..."
         TableInformation.createTables db
         
-        let sampleSize = 1_000_000
+        let sampleSize = 1_000//_000
         printfn "Generating %i samples..." sampleSize
         let samples = DataSeed.generateSampleData sampleSize
         
         let appConnString = $"Server=%s{server.Name};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
         
         printfn "Inserting samples..."
-        let bulkInsertMetrics = [
+        let bulkInsertMetrics = dict[
             "RawJson", DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
             "JsonWithIndex", DataWriter.bulkInsertJsonWithIndex appConnString Constants.JsonWithIndexTableName samples
             "JsonWithDimensionTable", DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
@@ -49,7 +54,7 @@ module Program =
         
         printfn "Selecting by Country..."
         let countryCodeToSelect = 987
-        let selectByCountryCodeMetrics = [
+        let selectByCountryCodeMetrics = dict[
             "RawJson", DataReader.queryRawJsonByCountryCode appConnString countryCodeToSelect
             "JsonWithDimensionTable", DataReader.queryJsonWithDimensionTableByCountryCode appConnString countryCodeToSelect
             "Relational", DataReader.queryRelationalByCountryCode appConnString countryCodeToSelect
@@ -57,7 +62,7 @@ module Program =
         
         printfn "Selecting by Zip..."
         let zipToSelect = "96863"
-        let selectByZipMetrics = [
+        let selectByZipMetrics = dict[
             "RawJson", DataReader.queryRawJsonByZip appConnString zipToSelect
             "JsonWithIndexNoForce", DataReader.queryJsonWithIndexByZip appConnString zipToSelect false
             "JsonWithIndexForce", DataReader.queryJsonWithIndexByZip appConnString zipToSelect true

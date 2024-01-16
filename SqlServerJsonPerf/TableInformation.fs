@@ -1,50 +1,33 @@
 module SqlServerJsonPerf.TableInformation
 
 open Microsoft.SqlServer.Management.Smo
+open SqlServerJsonPerf.Operators
 
 let private createRawJsonTable database =
-    let table = Table(database, Constants.RawJsonTableName)
-    let jsonColumn = Column(table, "Json", DataType.NVarCharMax, Nullable = false)
-    table.Columns.Add(jsonColumn)
-    table.Create()
+    Table(database, Constants.RawJsonTableName)
+    <-| ("Json", DataType.NVarCharMax, false)
+    |> create |> ignore
     
 let private createJsonWithIndexTable database =
-    let table = Table(database, Constants.JsonWithIndexTableName)
-    let jsonColumn = Column(table, "Json", DataType.NVarCharMax, Nullable = false)
-    table.Columns.Add(jsonColumn)
-    let zipColumn = Column(table, "Zip", DataType.VarChar(5), Nullable = false)
-    zipColumn.Computed <- true
-    zipColumn.IsPersisted <- true
-    zipColumn.ComputedText <- "CAST(JSON_VALUE(Json, 'strict $.Address.Zip') AS VARCHAR(5))"
-    table.Columns.Add(zipColumn)
-    table.Create()
-    let zipIndex = Index(table, "ZipIndex")
-    zipIndex.IndexedColumns.Add(IndexedColumn(zipIndex, "Zip"))
-    table.Indexes.Add(zipIndex)
-    zipIndex.Create()
+    Table(database, Constants.JsonWithIndexTableName)
+    <-| ("Json", DataType.NVarCharMax, false)
+    <-/ ("Zip", DataType.VarChar(5), false, true, "CAST(JSON_VALUE(Json, 'strict $.Address.Zip') AS VARCHAR(5))")
+    <-% ("ZipIndex", IndexKeyType.None, "Zip", false)
+    |> create |> ignore
     
 let private createJsonTableWithTriggerForDimension database =
-    let personTable = Table(database, Constants.JsonWithDimensionTableName)
-    let jsonColumn = Column(personTable, "Json", DataType.NVarCharMax, Nullable = false)
-    personTable.Columns.Add(jsonColumn)
-    let idColumn = Column(personTable, "Id", DataType.UniqueIdentifier, Nullable = false)
-    idColumn.Computed <- true
-    idColumn.IsPersisted <- true
-    idColumn.ComputedText <- "CAST(JSON_VALUE(Json, 'strict $.Id') AS UNIQUEIDENTIFIER)"
-    personTable.Columns.Add(idColumn)
-    personTable.Create()
-    let idIndex = Index(personTable, "IdIndex")
-    idIndex.IndexKeyType <- IndexKeyType.DriPrimaryKey
-    idIndex.IndexedColumns.Add(IndexedColumn(idIndex, "Id"))
-    personTable.Indexes.Add(idIndex)
-    idIndex.Create()
+    let personTable =
+        Table(database, Constants.JsonWithDimensionTableName)
+        <-| ("Json", DataType.NVarCharMax, false)
+        <-/ ("Id", DataType.UniqueIdentifier, false, true, "CAST(JSON_VALUE(Json, 'strict $.Id') AS UNIQUEIDENTIFIER)")
+        <-% ("IdIndex", IndexKeyType.DriPrimaryKey, "Id", true)
+        |> create
     
-    let phoneDimensionTable = Table(database, Constants.PhoneDimensionTableName)
-    let personIdColumn = Column(phoneDimensionTable, "PersonId", DataType.UniqueIdentifier, Nullable = false)
-    phoneDimensionTable.Columns.Add(personIdColumn)
-    let countryCodeColumn = Column(phoneDimensionTable, "CountryCode", DataType.NVarChar(5), Nullable = false)
-    phoneDimensionTable.Columns.Add(countryCodeColumn)
-    phoneDimensionTable.Create()
+    let phoneDimensionTable =
+        Table(database, Constants.PhoneDimensionTableName)
+        <-| ("PersonId", DataType.UniqueIdentifier, false)
+        <-| ("CountryCode", DataType.NVarChar(5), false)
+        |> create
     
     let personInsertTrigger = Trigger(personTable, "PersonInsertTrigger")
     personInsertTrigger.TextMode <- false
@@ -61,88 +44,38 @@ let private createJsonTableWithTriggerForDimension database =
     personInsertTrigger.Create()
     
 let private createRelationalTables database =
-    let personTable = Table(database, Constants.PersonTableName)
-    let idColumn = Column(personTable, "Id", DataType.UniqueIdentifier, Nullable = false)
-    personTable.Columns.Add(idColumn)
-    let firstNameColumn = Column(personTable, "FirstName", DataType.NVarChar(50), Nullable = false)
-    personTable.Columns.Add(firstNameColumn)
-    let lastNameColumn = Column(personTable, "LastName", DataType.NVarChar(50), Nullable = false)
-    personTable.Columns.Add(lastNameColumn)
-    let ageColumn = Column(personTable, "Age", DataType.Int, Nullable = false)
-    personTable.Columns.Add(ageColumn)
-    let personPrimaryKey = Index(personTable, "PersonPrimaryKey")
-    // Primary key
-    personPrimaryKey.IndexKeyType <- IndexKeyType.DriPrimaryKey
-    personPrimaryKey.IndexedColumns.Add(IndexedColumn(personPrimaryKey, "Id"))
-    personPrimaryKey.IsUnique <- true
-    personTable.Indexes.Add(personPrimaryKey)
-    personTable.Create()
+    let personTable =
+        Table(database, Constants.PersonTableName)
+        <-| ("Id", DataType.UniqueIdentifier, false)
+        <-| ("FirstName", DataType.NVarChar(50), false)
+        <-| ("LastName", DataType.NVarChar(50), false)
+        <-| ("Age", DataType.Int, false)
+        <-% ("PersonPrimaryKey", IndexKeyType.DriPrimaryKey, "Id", true)
+        |> create
     
-    let phoneNumberTable = Table(database, Constants.PhoneNumberTableName)
-    let personIdColumn = Column(phoneNumberTable, "PersonId", DataType.UniqueIdentifier, Nullable = false)
-    phoneNumberTable.Columns.Add(personIdColumn)
-    let idColumn = Column(phoneNumberTable, "Id", DataType.UniqueIdentifier, Nullable = false)
-    phoneNumberTable.Columns.Add(idColumn)
-    let countryColumn = Column(phoneNumberTable, "Country", DataType.VarChar(5), Nullable = false)
-    phoneNumberTable.Columns.Add(countryColumn)
-    let areaCodeColumn = Column(phoneNumberTable, "AreaCode", DataType.NVarChar(30), Nullable = false)
-    phoneNumberTable.Columns.Add(areaCodeColumn)
-    let numberColumn = Column(phoneNumberTable, "Number", DataType.NVarChar(10), Nullable = false)
-    phoneNumberTable.Columns.Add(numberColumn)
-    // Primary key
-    let phoneNumberPrimaryKey = Index(phoneNumberTable, "PhoneNumberPrimaryKey")
-    phoneNumberPrimaryKey.IndexKeyType <- IndexKeyType.DriPrimaryKey
-    phoneNumberPrimaryKey.IndexedColumns.Add(IndexedColumn(phoneNumberPrimaryKey, "Id"))
-    phoneNumberPrimaryKey.IsUnique <- true
-    phoneNumberTable.Indexes.Add(phoneNumberPrimaryKey)
-    // Foreign key
-    let phoneNumberPersonId = ForeignKey(phoneNumberTable, "PhoneNumberPersonIdForeignKey")
-    phoneNumberPersonId.ReferencedTable <- personTable.Name
-    let phoneNumberPersonIdColumn = ForeignKeyColumn(phoneNumberPersonId, "PersonId", "Id")
-    phoneNumberPersonId.Columns.Add(phoneNumberPersonIdColumn)
-    phoneNumberTable.ForeignKeys.Add(phoneNumberPersonId)
-    phoneNumberTable.Create()
+    Table(database, Constants.PhoneNumberTableName)
+    <-| ("PersonId", DataType.UniqueIdentifier, false)
+    <-| ("Id", DataType.UniqueIdentifier, false)
+    <-| ("Country", DataType.VarChar(5), false)
+    <-| ("AreaCode", DataType.NVarChar(30), false)
+    <-| ("Number", DataType.NVarChar(10), false)
+    <-%% ("CountryCodeIndex", IndexKeyType.None, seq { "Country"; "PersonId" }, false)
+    <-% ("PhoneNumberPrimaryKey", IndexKeyType.DriPrimaryKey, "Id", true)
+    <-@ ("PhoneNumberPersonIdForeignKey", personTable.Name, "Id", "PersonId")
+    |> create |> ignore
     
-    let countryCodeIndex = Index(phoneNumberTable, "Table_CountryCodeIndex")
-    countryCodeIndex.IndexedColumns.Add(IndexedColumn(countryCodeIndex, "Country"))
-    countryCodeIndex.IndexedColumns.Add(IndexedColumn(countryCodeIndex, "PersonId"))
-    countryCodeIndex.Create()
-    
-    let addressTable = Table(database, Constants.AddressTableName)
-    let personIdColumn = Column(addressTable, "PersonId", DataType.UniqueIdentifier, Nullable = false)
-    addressTable.Columns.Add(personIdColumn)
-    let idColumn = Column(addressTable, "Id", DataType.UniqueIdentifier, Nullable = false)
-    addressTable.Columns.Add(idColumn)
-    let lineOneColumn = Column(addressTable, "Line1", DataType.NVarChar(150), Nullable = false)
-    addressTable.Columns.Add(lineOneColumn)
-    let lineTwoColumn = Column(addressTable, "Line2", DataType.NVarChar(150), Nullable = true)
-    addressTable.Columns.Add(lineTwoColumn)
-    let cityColumn = Column(addressTable, "City", DataType.NVarChar(50), Nullable = false)
-    addressTable.Columns.Add(cityColumn)
-    let stateColumn = Column(addressTable, "State", DataType.NVarChar(50), Nullable = false)
-    addressTable.Columns.Add(stateColumn)
-    let zipColumn = Column(addressTable, "Zip", DataType.VarChar(5), Nullable = false)
-    addressTable.Columns.Add(zipColumn)
-    // Primary key
-    let addressPrimaryKey = Index(addressTable, "AddressPrimaryKey")
-    addressPrimaryKey.IndexKeyType <- IndexKeyType.DriPrimaryKey
-    addressPrimaryKey.IndexedColumns.Add(IndexedColumn(addressPrimaryKey, "Id"))
-    addressPrimaryKey.IsUnique <- true
-    addressTable.Indexes.Add(addressPrimaryKey)
-    // Foreign key
-    let addressPersonId = ForeignKey(addressTable, "AddressPersonIdForeignKey")
-    addressPersonId.ReferencedTable <- personTable.Name
-    let addressPersonIdColumn = ForeignKeyColumn(addressPersonId, "PersonId", "Id")
-    addressPersonId.Columns.Add(addressPersonIdColumn)
-    addressTable.ForeignKeys.Add(addressPersonId)
-    // Zip index
-    let ZipAndPersonIdIndex = Index(addressTable, "ZipAndPersonIdIndex")
-    ZipAndPersonIdIndex.IndexKeyType <- IndexKeyType.None
-    ZipAndPersonIdIndex.IndexedColumns.Add(IndexedColumn(ZipAndPersonIdIndex, "Zip"))
-    ZipAndPersonIdIndex.IndexedColumns.Add(IndexedColumn(ZipAndPersonIdIndex, "PersonId"))
-    addressTable.Indexes.Add(ZipAndPersonIdIndex)
-    
-    addressTable.Create()
+    Table(database, Constants.AddressTableName)
+    <-| ("PersonId", DataType.UniqueIdentifier, false)
+    <-| ("Id", DataType.UniqueIdentifier, false)
+    <-| ("Line1", DataType.NVarChar(150), false)
+    <-| ("Line2", DataType.NVarChar(150), true)
+    <-| ("City", DataType.NVarChar(50), false)
+    <-| ("State", DataType.NVarChar(50), false)
+    <-| ("Zip", DataType.VarChar(5), false)
+    <-% ("AddressPrimaryKey", IndexKeyType.DriPrimaryKey, "Id", true)
+    <-@ ("AddressPersonIdForeignKey", personTable.Name, "Id", "PersonId")
+    <-%% ("ZipAndPersonIdIndex", IndexKeyType.None, seq { "Zip"; "PersonId" }, false)
+    |> create |> ignore
     
 let createTables database =
     createRawJsonTable database
