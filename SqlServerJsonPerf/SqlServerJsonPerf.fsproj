@@ -16,6 +16,7 @@
         <Compile Include="DataSeed.fs" />
         <Compile Include="DataWriter.fs" />
         <Compile Include="DataReader.fs" />
+        <Compile Include="Reporting.fs" />
         <Compile Include="Program.fs"/>
     </ItemGroup>
 

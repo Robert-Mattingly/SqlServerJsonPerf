@@ -10,6 +10,7 @@ type Program() =
     do()
 
 module Program =
+    
     [<EntryPoint>]
     let main argv =
         let config = ConfigurationBuilder().AddUserSecrets<Program>().Build()
@@ -38,7 +39,7 @@ module Program =
         printfn "Creating tables..."
         TableInformation.createTables db
         
-        let sampleSize = 1_000//_000
+        let sampleSize = 1_000_000
         printfn "Generating %i samples..." sampleSize
         let samples = DataSeed.generateSampleData sampleSize
         
@@ -47,15 +48,18 @@ module Program =
         printfn "Inserting samples..."
         let bulkInsertMetrics = dict[
             "RawJson", DataWriter.bulkInsertRawJson appConnString Constants.RawJsonTableName samples
+            "RawJson500", DataWriter.bulkInsertRawJson500 appConnString Constants.RawJson500TableName samples
             "JsonWithIndex", DataWriter.bulkInsertJsonWithIndex appConnString Constants.JsonWithIndexTableName samples
             "JsonWithDimensionTable", DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
             "Relational", DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
-        ]
+        ] 
         
         printfn "Selecting by Country..."
         let countryCodeToSelect = 987
         let selectByCountryCodeMetrics = dict[
             "RawJson", DataReader.queryRawJsonByCountryCode appConnString countryCodeToSelect
+            "RawJsonNoCrossApply", DataReader.queryRawJsonByCountryCodeWithoutCrossApply appConnString countryCodeToSelect
+            "RawJson500", DataReader.queryRawJson500ByCountryCode appConnString countryCodeToSelect
             "JsonWithDimensionTable", DataReader.queryJsonWithDimensionTableByCountryCode appConnString countryCodeToSelect
             "Relational", DataReader.queryRelationalByCountryCode appConnString countryCodeToSelect
         ]
@@ -64,13 +68,25 @@ module Program =
         let zipToSelect = "96863"
         let selectByZipMetrics = dict[
             "RawJson", DataReader.queryRawJsonByZip appConnString zipToSelect
+            "RawJson500", DataReader.queryRawJson500ByZip appConnString zipToSelect
             "JsonWithIndexNoForce", DataReader.queryJsonWithIndexByZip appConnString zipToSelect false
             "JsonWithIndexForce", DataReader.queryJsonWithIndexByZip appConnString zipToSelect true
             "Relational", DataReader.queryRelationalByZip appConnString zipToSelect
         ]
         
-        ServerManagement.cleanup server appUser
+        let createWhitespaceOnConsole lines =
+            for _ in 1..lines do
+                printfn ""
         
-        printfn "Hello from F#"
+        createWhitespaceOnConsole 2
+        Reporting.reportInsertMetrics bulkInsertMetrics |> printfn "%s"
+        
+        createWhitespaceOnConsole 2
+        Reporting.reportSelectMetrics selectByCountryCodeMetrics |> printfn "%s"
+        
+        createWhitespaceOnConsole 2
+        Reporting.reportSelectMetrics selectByZipMetrics |> printfn "%s"
+        
+        ServerManagement.cleanup server appUser
         
         0

@@ -66,6 +66,69 @@ let queryRawJsonByCountryCode (connString:string) (countryCode:int) =
                      |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
     metrics
     
+let queryRawJsonByCountryCodeWithoutCrossApply (connString:string) (countryCode:int) =
+    let totalTimer = Stopwatch.StartNew()
+    let sql = $"
+    SELECT
+        [Json]
+    FROM {Constants.RawJsonTableName}
+    WHERE @TargetCode IN (
+        JSON_VALUE([Json], '$.PhoneNumbers[0].Country'),
+        JSON_VALUE([Json], '$.PhoneNumbers[1].Country'),
+        JSON_VALUE([Json], '$.PhoneNumbers[2].Country')
+    )
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use cmd = new SqlCommand(sql, conn)
+    cmd.Parameters.Add("@TargetCode", SqlDbType.VarChar, 5).Value <- countryCode.ToString()
+    use reader = cmd.ExecuteReader()
+    let rec readAll (reader:SqlDataReader) =
+        seq {
+            if reader.Read() then
+                yield reader.GetString(0)
+                yield! readAll reader
+        }
+    let rawJson = readAll reader |> Seq.toList
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = rawJson |> List.map JsonSerializer.Deserialize<Person>
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics
+    
+let queryRawJson500ByCountryCode (connString:string) (countryCode:int) =
+    let totalTimer = Stopwatch.StartNew()
+    let sql = $"
+    SELECT
+        [Json]
+    FROM {Constants.RawJson500TableName}
+    CROSS APPLY OPENJSON(Json, '$.PhoneNumbers') AS phone
+    WHERE JSON_VALUE(phone.value, '$.Country') = @TargetCode
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use cmd = new SqlCommand(sql, conn)
+    cmd.Parameters.Add("@TargetCode", SqlDbType.VarChar, 5).Value <- countryCode.ToString()
+    use reader = cmd.ExecuteReader()
+    let rec readAll (reader:SqlDataReader) =
+        seq {
+            if reader.Read() then
+                yield reader.GetString(0)
+                yield! readAll reader
+        }
+    let rawJson = readAll reader |> Seq.toList
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = rawJson |> List.map JsonSerializer.Deserialize<Person>
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics
+    
 let queryJsonWithDimensionTableByCountryCode (connString:string) (countryCode:int) =
     let totalTimer = Stopwatch.StartNew()
     let sql = $"
@@ -144,13 +207,17 @@ let private deserializeDataTablesToPersonList (persons:DataTable) (addresses:Dat
 let queryRelationalByCountryCode (connString:string) (countryCode:int) =
     let totalTimer = Stopwatch.StartNew()
     let sql = $"
+    SELECT 
+    PersonId
+    INTO #Persons
+    FROM {Constants.PhoneNumberTableName}
+    WHERE Country = @TargetCode
+
     SELECT p.* FROM {Constants.PersonTableName} p
-    JOIN {Constants.PhoneNumberTableName} pn ON p.Id = pn.PersonId
-    WHERE pn.Country = @TargetCode
+    WHERE Id IN (SELECT PersonId FROM #Persons)
 
     SELECT a.* FROM {Constants.AddressTableName} a
-    JOIN {Constants.PhoneNumberTableName} pn ON a.PersonId = pn.PersonId
-    WHERE pn.Country = @TargetCode
+    WHERE PersonId IN (SELECT PersonId FROM #Persons)
 
     SELECT * FROM {Constants.PhoneNumberTableName}
     WHERE Country = @TargetCode
@@ -176,6 +243,35 @@ let queryRawJsonByZip (connString:string) (zip:string) =
     SELECT
         [Json]
     FROM {Constants.RawJsonTableName}
+    WHERE JSON_VALUE(Json, '$.Address.Zip') = @TargetZip
+    "
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use cmd = new SqlCommand(sql, conn)
+    cmd.Parameters.Add("@TargetZip", SqlDbType.VarChar, 5).Value <- zip
+    use reader = cmd.ExecuteReader()
+    let rec readAll (reader:SqlDataReader) =
+        seq {
+            if reader.Read() then
+                yield reader.GetString(0)
+                yield! readAll reader
+        }
+    let rawJson = readAll reader |> Seq.toList
+    let deserializationTimer = Stopwatch.StartNew()
+    let deserialized = rawJson |> List.map JsonSerializer.Deserialize<Person>
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed deserialized
+    metrics
+    
+let queryRawJson500ByZip (connString:string) (zip:string) =
+    let totalTimer = Stopwatch.StartNew()
+    let sql = $"
+    SELECT
+        [Json]
+    FROM {Constants.RawJson500TableName}
     WHERE JSON_VALUE(Json, '$.Address.Zip') = @TargetZip
     "
     use conn = new SqlConnection(connString)

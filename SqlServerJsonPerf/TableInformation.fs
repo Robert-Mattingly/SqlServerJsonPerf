@@ -8,6 +8,11 @@ let private createRawJsonTable database =
     <-| ("Json", DataType.NVarCharMax, false)
     |> create |> ignore
     
+let private createRawJson500Table database =
+    Table(database, Constants.RawJson500TableName)
+    <-| ("Json", DataType.NVarChar(500), false)
+    |> create |> ignore
+    
 let private createJsonWithIndexTable database =
     Table(database, Constants.JsonWithIndexTableName)
     <-| ("Json", DataType.NVarCharMax, false)
@@ -79,6 +84,7 @@ let private createRelationalTables database =
     
 let createTables database =
     createRawJsonTable database
+    createRawJson500Table database
     createJsonWithIndexTable database
     createJsonTableWithTriggerForDimension database
     createRelationalTables database

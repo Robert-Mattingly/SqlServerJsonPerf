@@ -67,6 +67,22 @@ let bulkInsertRawJson (connectionString:string) (tableName:string) (people:Perso
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed 
 
+let bulkInsertRawJson500 (connectionString:string) (tableName:string) (people:Person list) =
+    let totalTimer = Stopwatch.StartNew()
+    let serializationTimer = Stopwatch.StartNew()
+    let jsonValues = people |> List.map JsonSerializer.Serialize
+    serializationTimer.Stop()
+    use dataTable = new DataTable()
+    dataTable.Columns.Add("Json", typeof<string>) |> ignore
+    jsonValues |> List.iter (fun json -> dataTable.Rows.Add(json) |> ignore)
+    serializationTimer.Stop()
+    use connection = prepConnection connectionString
+    use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.Default
+    bulkCopy.BatchSize <- 5000
+    bulkCopy.WriteTo tableName dataTable
+    totalTimer.Stop()
+    connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed
+
 let bulkInsertJsonWithIndex (connectionString:string) (tableName:string) (people:Person list) =
     let totalTimer = Stopwatch.StartNew()
     let serializationTimer = Stopwatch.StartNew()
@@ -105,7 +121,7 @@ let bulkInsertRelational
         (phoneNumbersTableName:string)
         (people:Person list) =
     let totalTimer = Stopwatch.StartNew()
-    let serializationTimer = Stopwatch()
+    let serializationTimer = Stopwatch.StartNew()
     use personTable = new DataTable()
     personTable.Columns.Add("Id", typeof<Guid>) |> ignore
     personTable.Columns.Add("FirstName", typeof<string>) |> ignore
