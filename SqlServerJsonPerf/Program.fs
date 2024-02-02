@@ -38,7 +38,8 @@ module Program =
         printfn "Generating %i samples..." sampleSize
         let samples = DataSeed.generateSampleData sampleSize
         
-        let appConnString = $"Server=%s{server.Name};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
+        let serverConn = server.ConnectionContext.SqlConnectionObject
+        let appConnString = $"Server=%s{serverConn.DataSource};Database=%s{dbName};User Id=%s{appUser};Password=%s{appPassword};TrustServerCertificate=True"
         
         printfn "Inserting samples..."
         let bulkInsertMetrics = dict[
