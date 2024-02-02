@@ -43,7 +43,7 @@ let reportInsertMetrics (results:IDictionary<string,BulkInsertMetrics>) =
     }
     lines |> Seq.append header |> String.concat Environment.NewLine
     
-let reportSelectMetrics (results:IDictionary<string,SelectMetrics>) =
+let reportSelectMetrics<'a> (results:IDictionary<string,SelectMetrics<'a>>) =
     let maxTotalTime = results.Values |> Seq.map _.TotalTime.Ticks |> Seq.max
     let maxDeserializationTime = results.Values |> Seq.map _.DeserializationTime.Ticks |> Seq.max
     let maxExecutionTime = results.Values |> Seq.map _.ExecutionTime.Ticks |> Seq.max

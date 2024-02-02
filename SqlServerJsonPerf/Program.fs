@@ -70,19 +70,29 @@ module Program =
             "Relational", DataReader.queryRelationalByZip appConnString zipToSelect
         ]
         
-        let createWhitespaceOnConsole lines =
-            for _ in 1..lines do
-                printfn ""
+        let countByCountryCodeMetrics = dict[
+            "RawJson", DataReader.countRawJsonByCountryCode appConnString countryCodeToSelect
+            "RawJsonNoCrossApply", DataReader.countRawJsonByCountryCodeWithoutCrossApply appConnString countryCodeToSelect
+            "RawJson500", DataReader.countRawJson500ByCountryCode appConnString countryCodeToSelect
+            "JsonWithDimensionTable", DataReader.countJsonWithDimensionTableByCountryCode appConnString countryCodeToSelect
+            "Relational", DataReader.countRelationalByCountryCode appConnString countryCodeToSelect
+        ]
         
-        createWhitespaceOnConsole 2
+        let createHeaderOnConsole header =
+            printfn "\n========================================"
+            printfn "%s" header
+            printfn "========================================"
+        
+        createHeaderOnConsole "Bulk Insert Metrics"
         Reporting.reportInsertMetrics bulkInsertMetrics |> printfn "%s"
         
-        createWhitespaceOnConsole 2
+        createHeaderOnConsole "Select by Country Code Metrics"
         Reporting.reportSelectMetrics selectByCountryCodeMetrics |> printfn "%s"
         
-        createWhitespaceOnConsole 2
+        createHeaderOnConsole "Select by Zip Metrics"
         Reporting.reportSelectMetrics selectByZipMetrics |> printfn "%s"
         
-        ServerManagement.cleanup server appUser
+        createHeaderOnConsole "Count by Country Code Metrics"
+        Reporting.reportSelectMetrics countByCountryCodeMetrics |> printfn "%s"
         
         0

@@ -8,7 +8,7 @@ open System.Text.Json
 open Microsoft.Data.SqlClient
 open SqlServerJsonPerf.Types
 
-type SelectMetrics = {
+type SelectMetrics<'a> = {
     TotalTime:TimeSpan
     DeserializationTime:TimeSpan
     BytesReceived:int64
@@ -19,7 +19,7 @@ type SelectMetrics = {
     SelectRows:int64
     ServerRoundTrips:int64
     SumResultSets:int64
-    Results: Person list
+    Results: list<'a>
 }
 
 let private parseMetrics totalTime deserializationTime results (statistics:IDictionary) =
@@ -155,7 +155,7 @@ let queryRelational connString sql sqlParam =
     conn.Open()
     use dataset = new DataSet()
     use adapter = new SqlDataAdapter(sql, conn)
-    adapter.SelectCommand.Parameters.Add(sqlParam)
+    adapter.SelectCommand.Parameters.Add(sqlParam) |> ignore
     adapter.Fill(dataset) |> ignore
     let deserializationTimer = Stopwatch.StartNew()
     let deserialized = deserializeDataTablesToPersonList dataset.Tables.[0] dataset.Tables.[1] dataset.Tables.[2]
@@ -225,4 +225,76 @@ let queryRelationalByZip (connString:string) (zip:string) =
     SELECT pn.* FROM {Constants.PhoneNumberTableName} pn
     JOIN {Constants.AddressTableName} a ON pn.PersonId = a.PersonId
     WHERE a.Zip = @TargetZip
+    " param
+    
+let queryCount connString sql sqlParam =
+    let totalTimer = Stopwatch.StartNew()
+    use conn = new SqlConnection(connString)
+    conn.StatisticsEnabled <- true
+    conn.Open()
+    use cmd = new SqlCommand(sql, conn)
+    cmd.Parameters.Add(sqlParam) |> ignore
+    let count = cmd.ExecuteScalar() :?> int32
+    let deserializationTimer = Stopwatch.StartNew()
+    let countList = [count]
+    deserializationTimer.Stop()
+    totalTimer.Stop()
+    let metrics = conn.RetrieveStatistics()
+                     |> parseMetrics totalTimer.Elapsed deserializationTimer.Elapsed countList
+    metrics
+    
+let countRawJsonByCountryCode (connString:string) (countryCode:int) =
+    let param = SqlParameter("@TargetCode", SqlDbType.VarChar, 5, Value = countryCode.ToString())
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.RawJsonTableName}
+    CROSS APPLY OPENJSON(Json, '$.PhoneNumbers') AS phone
+    WHERE JSON_VALUE(phone.value, '$.Country') = @TargetCode
+    " param
+    
+let countRawJsonByCountryCodeWithoutCrossApply (connString:string) (countryCode:int) =
+    let param = SqlParameter("@TargetCode", SqlDbType.VarChar, 5, Value = countryCode.ToString())
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.RawJsonTableName}
+    WHERE @TargetCode IN (
+        JSON_VALUE([Json], '$.PhoneNumbers[0].Country'),
+        JSON_VALUE([Json], '$.PhoneNumbers[1].Country'),
+        JSON_VALUE([Json], '$.PhoneNumbers[2].Country')
+    )
+    " param
+    
+let countRawJson500ByCountryCode (connString:string) (countryCode:int) =
+    let param = SqlParameter("@TargetCode", SqlDbType.VarChar, 5, Value = countryCode.ToString())
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.RawJson500TableName}
+    CROSS APPLY OPENJSON(Json, '$.PhoneNumbers') AS phone
+    WHERE JSON_VALUE(phone.value, '$.Country') = @TargetCode
+    " param
+    
+let countJsonWithDimensionTableByCountryCode (connString:string) (countryCode:int) =
+    let param = SqlParameter("@TargetCode", SqlDbType.VarChar, 5, Value = countryCode.ToString())
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.JsonWithDimensionTableName} jwd
+    JOIN {Constants.PhoneDimensionTableName} pd ON jwd.Id = pd.PersonId
+    WHERE pd.CountryCode = @TargetCode
+    " param
+    
+let countRelationalByCountryCode (connString:string) (countryCode:int) =
+    let param = SqlParameter("@TargetCode", SqlDbType.VarChar, 5, Value = countryCode.ToString())
+    queryCount connString $"
+    SELECT DISTINCT
+    PersonId
+    INTO #Persons
+    FROM {Constants.PhoneNumberTableName}
+    WHERE Country = @TargetCode
+
+    SELECT COUNT(*) FROM {Constants.PersonTableName} p
+    WHERE Id IN (SELECT PersonId FROM #Persons)
     " param
