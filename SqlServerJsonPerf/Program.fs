@@ -15,23 +15,18 @@ module Program =
     let main argv =
         let config = ConfigurationBuilder().AddUserSecrets<Program>().Build()
         
-        let typeOfSelectMetrics = typeof<SelectMetrics>
-        let fields = typeOfSelectMetrics.GetFields()
-        let properties = typeOfSelectMetrics.GetProperties()
-        
-        let adminUser = config.["Sql:AdminLogin:Username"]
-        let adminPassword = config.["Sql:AdminLogin:Password"]
         let appUser = config.["Sql:AppLogin:Username"]
         let appPassword = config.["Sql:AppLogin:Password"]
+        let adminConnString = config.["Sql:AdminConnectionString"]
         let dbName = Constants.DatabaseName
         
         printfn "Removing existing database if exists..."
-        let server = ServerManagement.openServer adminUser adminPassword
+        let server = Server()
+        server.ConnectionContext.ConnectionString <- adminConnString
         ServerManagement.cleanup server appUser
         
         let (db, login, user) = ServerManagement.init
-                                    adminUser
-                                    adminPassword
+                                    server
                                     appUser
                                     appPassword
                                     dbName

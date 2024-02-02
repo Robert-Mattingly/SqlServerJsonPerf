@@ -2,12 +2,6 @@ module SqlServerJsonPerf.ServerManagement
 
     open Microsoft.SqlServer.Management.Smo
 
-    let openServer username password =
-        let server = new Server()
-        server.ConnectionContext.LoginSecure <- false
-        server.ConnectionContext.Login <- username
-        server.ConnectionContext.Password <- password
-        server
     let private createDatabase server dbName =
         let database = new Database(server, dbName)
         database.Create()
@@ -27,8 +21,7 @@ module SqlServerJsonPerf.ServerManagement
         user.Alter()
         login, user
         
-    let init adminUser adminPassword appUser appPassword dbName =
-        let server = openServer adminUser adminPassword
+    let init server appUser appPassword dbName =
         let database = createDatabase server dbName
         let login, user = createLoginAndUser server database appUser appPassword
         database, login, user
