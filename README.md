@@ -4,7 +4,7 @@ A small test project for comparing the performance of JSON vs relational data in
 
 ## Getting Started
 
-> Quick Disclaimer: **Run at own risk.**
+> # Quick Disclaimer: Run at own risk.
 > 
 > This project DROPs and CREATEs various SQL Server objects, including a database.  It is also under active development and may not be stable.
 > 
