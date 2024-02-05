@@ -48,6 +48,7 @@ module Program =
             "JsonWithIndex", DataWriter.bulkInsertJsonWithIndex appConnString Constants.JsonWithIndexTableName samples
             "JsonWithDimensionTable", DataWriter.bulkInsertJsonWithDimension appConnString Constants.JsonWithDimensionTableName samples
             "Relational", DataWriter.bulkInsertRelational appConnString Constants.PersonTableName Constants.AddressTableName Constants.PhoneNumberTableName samples
+            "RawXml", DataWriter.bulkInsertRawXml appConnString Constants.RawXmlTableName samples
         ] 
         
         printfn "Selecting by Country..."

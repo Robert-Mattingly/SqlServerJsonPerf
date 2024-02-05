@@ -2,6 +2,7 @@ module SqlServerJsonPerf.DataReader
 
 open System
 open System.Collections
+open System.Collections.Generic
 open System.Data
 open System.Diagnostics
 open System.Text.Json
@@ -138,14 +139,16 @@ let private deserializeDataTablesToPersonList (persons:DataTable) (addresses:Dat
     let phoneNumbersByPersonId = parsePhoneNumberTableToMap phoneNumbers
     let results = persons.Rows |> Seq.cast<DataRow> |> Seq.map (fun row ->
         let id = row.["Id"] :?> Guid
-        {
+        let o = {
             Id = id
             FirstName = row.["FirstName"] :?> string
             LastName = row.["LastName"] :?> string
             Age = row.["Age"] :?> int
             Address = addressesByPersonId.[id]
-            PhoneNumbers = phoneNumbersByPersonId.[id]
-        })
+            PhoneNumbers = List<PhoneNumber>()
+        }
+        o.PhoneNumbers.AddRange(phoneNumbersByPersonId.[id])
+        o)
     results |> List.ofSeq
     
 let queryRelational connString sql sqlParam =

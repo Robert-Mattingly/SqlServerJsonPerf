@@ -2,6 +2,7 @@ module SqlServerJsonPerf.TableInformation
 
 open Microsoft.SqlServer.Management.Smo
 open SqlServerJsonPerf.Operators
+open Types
 
 let private createRawJsonTable database =
     Table(database, Constants.RawJsonTableName)
@@ -81,6 +82,11 @@ let private createRelationalTables database =
     <-@ ("AddressPersonIdForeignKey", personTable.Name, "Id", "PersonId")
     <-%% ("ZipAndPersonIdIndex", IndexKeyType.None, seq { "Zip"; "PersonId" }, false)
     |> create |> ignore
+
+let private createRawXmlTable database =
+    Table(database, Constants.RawXmlTableName)
+    <-| ("Xml", DataType.Xml(""), false)
+    |> create |> ignore
     
 let createTables database =
     createRawJsonTable database
@@ -88,5 +94,6 @@ let createTables database =
     createJsonWithIndexTable database
     createJsonTableWithTriggerForDimension database
     createRelationalTables database
+    createRawXmlTable database
    
 

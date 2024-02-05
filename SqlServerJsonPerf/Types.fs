@@ -1,7 +1,9 @@
 module SqlServerJsonPerf.Types
 
 open System
+open System.Collections.Generic
 
+[<CLIMutable>]
 type Address = {
     Id: Guid
     Line1:string
@@ -11,6 +13,7 @@ type Address = {
     Zip:string
 }
 
+[<CLIMutable>]
 type PhoneNumber = {
     Id: Guid
     Country: string
@@ -18,11 +21,12 @@ type PhoneNumber = {
     Number: string
 }
 
+[<CLIMutable>]
 type Person = {
     Id: Guid
     FirstName:string
     LastName:string
     Age:int
     Address:Address
-    PhoneNumbers:PhoneNumber list
+    PhoneNumbers:List<PhoneNumber>
 }

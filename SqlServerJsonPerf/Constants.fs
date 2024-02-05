@@ -27,3 +27,6 @@ let PhoneNumberTableName = "PhoneNumber"
 [<Literal>]
 let PersonTableName = "Person"
 
+[<Literal>]
+let RawXmlTableName = "RawXml"
+

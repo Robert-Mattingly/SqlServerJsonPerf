@@ -8,6 +8,8 @@ open System.Text.Json
 open Microsoft.Data.SqlClient
 open SqlServerJsonPerf.Extensions
 open SqlServerJsonPerf.Types
+open System.Xml.Serialization
+open System.IO
 
 type BulkInsertMetrics = {
     TotalTime:TimeSpan
@@ -145,8 +147,9 @@ let bulkInsertRelational
         personTable.Rows.Add(person.Id, person.FirstName, person.LastName, person.Age) |> ignore
         let address = person.Address
         addressTable.Rows.Add(person.Id, address.Id, address.Line1, address.Line2, address.City, address.State, address.Zip) |> ignore
-        person.PhoneNumbers |> List.iter (fun phoneNumber ->
-            phoneNumbersTable.Rows.Add(person.Id, phoneNumber.Id, phoneNumber.Country, phoneNumber.AreaCode, phoneNumber.Number) |> ignore))
+        for phoneNumber in person.PhoneNumbers do
+            phoneNumbersTable.Rows.Add(person.Id, phoneNumber.Id, phoneNumber.Country, phoneNumber.AreaCode, phoneNumber.Number) |> ignore
+        )
     serializationTimer.Stop()
     use connection = prepConnection connectionString
     use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.Default
@@ -155,3 +158,23 @@ let bulkInsertRelational
     bulkCopy.WriteTo phoneNumbersTableName phoneNumbersTable
     totalTimer.Stop()
     connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed
+
+let bulkInsertRawXml (connectionString:string) (tableName:string) (people:Person list) =
+    let totalTimer = Stopwatch.StartNew()
+    let serializationTimer = Stopwatch.StartNew()
+    let serializer = XmlSerializer(typedefof<Person>)
+    let serializePerson p = 
+        use writer = StringWriter()
+        serializer.Serialize(writer, p)
+        writer.ToString()
+    let xmlValues = people |> List.map serializePerson
+    serializationTimer.Stop()
+    use dataTable = new DataTable()
+    dataTable.Columns.Add("Xml", typeof<string>) |> ignore
+    xmlValues |> List.iter (fun json -> dataTable.Rows.Add(json) |> ignore)
+    serializationTimer.Stop()
+    use connection = prepConnection connectionString
+    use bulkCopy = prepBulkCopy connection SqlBulkCopyOptions.Default
+    bulkCopy.WriteTo tableName dataTable
+    totalTimer.Stop()
+    connection.RetrieveStatistics() |> parseMetrics totalTimer.Elapsed serializationTimer.Elapsed 
