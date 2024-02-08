@@ -42,18 +42,13 @@ let queryJson connString sql sqlParam =
     use conn = new SqlConnection(connString)
     conn.StatisticsEnabled <- true
     conn.Open()
-    use cmd = new SqlCommand(sql, conn)
-    cmd.Parameters.Add(sqlParam) |> ignore
-    use reader = cmd.ExecuteReader()
-    let rec readAll (reader:SqlDataReader) =
-        seq {
-            if reader.Read() then
-                yield reader.GetString(0)
-                yield! readAll reader
-        }
-    let rawJson = readAll reader |> Seq.toList
+    use dataset = new DataSet()
+    use adapter = new SqlDataAdapter(sql, conn)
+    adapter.SelectCommand.Parameters.Add(sqlParam) |> ignore
+    adapter.Fill(dataset) |> ignore
     let deserializationTimer = Stopwatch.StartNew()
-    let deserialized = rawJson |> List.map JsonSerializer.Deserialize<Person>
+    let jsonStrings = dataset.Tables.[0].Rows |> Seq.cast<DataRow> |> Seq.map (fun row -> row.["Json"] :?> string)
+    let deserialized = jsonStrings |> Seq.map JsonSerializer.Deserialize<Person> |> List.ofSeq
     deserializationTimer.Stop()
     totalTimer.Stop()
     let metrics = conn.RetrieveStatistics()
