@@ -298,3 +298,39 @@ let countRelationalByCountryCode (connString:string) (countryCode:int) =
     SELECT COUNT(*) FROM {Constants.PersonTableName} p
     WHERE Id IN (SELECT PersonId FROM #Persons)
     " param
+
+let countRawJsonByZip (connString:string) (zip:string) =
+    let param = SqlParameter("@TargetZip", SqlDbType.VarChar, 5, Value = zip)
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.RawJsonTableName}
+    WHERE JSON_VALUE(Json, '$.Address.Zip') = @TargetZip
+    " param
+
+let countRawJson500ByZip (connString:string) (zip:string) =
+    let param = SqlParameter("@TargetZip", SqlDbType.VarChar, 5, Value = zip)
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.RawJson500TableName}
+    WHERE JSON_VALUE(Json, '$.Address.Zip') = @TargetZip
+    " param
+
+let countJsonWithIndexByZip (connString:string) (zip:string) forceIndex =
+    let param = SqlParameter("@TargetZip", SqlDbType.VarChar, 5, Value = zip)
+    let indexForceArg = if forceIndex then "WITH (INDEX(ZipIndex))" else ""
+    queryCount connString $"
+    SELECT
+        COUNT(*)
+    FROM {Constants.JsonWithIndexTableName} jwd {indexForceArg}
+    WHERE jwd.Zip = @TargetZip
+    " param
+
+let countRelationalByZip (connString:string) (zip:string) =
+    let param = SqlParameter("@TargetZip", SqlDbType.VarChar, 5, Value = zip)
+    queryCount connString $"
+    SELECT COUNT(*) FROM {Constants.PersonTableName} p
+    JOIN {Constants.AddressTableName} a ON p.Id = a.PersonId
+    WHERE a.Zip = @TargetZip
+    " param

@@ -77,6 +77,14 @@ module Program =
             "JsonWithDimensionTable", DataReader.countJsonWithDimensionTableByCountryCode appConnString countryCodeToSelect
             "Relational", DataReader.countRelationalByCountryCode appConnString countryCodeToSelect
         ]
+
+        let countByZipMetrics = dict[
+            "RawJson", DataReader.countRawJsonByZip appConnString zipToSelect
+            "RawJson500", DataReader.countRawJson500ByZip appConnString zipToSelect
+            "JsonWithIndexNoForce", DataReader.countJsonWithIndexByZip appConnString zipToSelect false
+            "JsonWithIndexForce", DataReader.countJsonWithIndexByZip appConnString zipToSelect true
+            "Relational", DataReader.countRelationalByZip appConnString zipToSelect
+        ]
         
         let createHeaderOnConsole header =
             printfn "\n========================================"
@@ -94,5 +102,8 @@ module Program =
         
         createHeaderOnConsole "Count by Country Code Metrics"
         Reporting.reportSelectMetrics countByCountryCodeMetrics |> printfn "%s"
+
+        createHeaderOnConsole "Count by Zip Metrics"
+        Reporting.reportSelectMetrics countByZipMetrics |> printfn "%s"
         
         0
