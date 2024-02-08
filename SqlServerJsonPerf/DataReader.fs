@@ -13,6 +13,7 @@ type SelectMetrics<'a> = {
     DeserializationTime:TimeSpan
     BytesReceived:int64
     BytesSent:int64
+    ConnectionTime:TimeSpan
     ExecutionTime:TimeSpan
     NetworkServerTime:TimeSpan
     SelectCount:int64
@@ -28,6 +29,7 @@ let private parseMetrics totalTime deserializationTime results (statistics:IDict
         DeserializationTime = deserializationTime
         BytesReceived = statistics.["BytesReceived"] :?> int64
         BytesSent = statistics.["BytesSent"] :?> int64
+        ConnectionTime = statistics.["ConnectionTime"] :?> int64 |> float |> TimeSpan.FromMilliseconds
         ExecutionTime = statistics.["ExecutionTime"] :?> int64 |> float |> TimeSpan.FromMilliseconds
         NetworkServerTime = statistics.["NetworkServerTime"] :?> int64 |> float |> TimeSpan.FromMilliseconds
         SelectCount = statistics.["SelectCount"] :?> int64

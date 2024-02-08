@@ -14,6 +14,7 @@ type BulkInsertMetrics = {
     SerializationTime:TimeSpan
     BytesReceived:int64
     BytesSent:int64
+    ConnectionTime:TimeSpan
     ExecutionTime:TimeSpan
     NetworkServerTime:TimeSpan
     IduCount:int64
@@ -29,6 +30,7 @@ let private parseMetrics totalTime serializationTime (statistics:IDictionary) =
         SerializationTime = serializationTime
         BytesReceived = statistics.["BytesReceived"] :?> int64
         BytesSent = statistics.["BytesSent"] :?> int64
+        ConnectionTime = statistics.["ConnectionTime"] :?> int64 |> float |> TimeSpan.FromMilliseconds
         ExecutionTime = statistics.["ExecutionTime"] :?> int64 |> float |> TimeSpan.FromMilliseconds
         NetworkServerTime = statistics.["NetworkServerTime"] :?> int64 |> float |> TimeSpan.FromMilliseconds
         IduCount = statistics.["IduCount"] :?> int64
